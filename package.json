@@ -1,0 +1,16 @@
+{
+  "name": "topupdaddy-upi-payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "worker": "node --env-file-if-exists=.env src/worker.js",
+    "login": "node --env-file-if-exists=.env src/worker.js --login",
+    "test": "node --test test/payment.test.js test/store.test.js test/api.test.js",
+    "test:browser": "node --test test/browser.test.js",
+    "check": "node --check src/server.js && node --check src/worker.js"
+  },
+  "dependencies": { "upiqr": "1.4.1", "playwright": "^1.56.0" }
+}

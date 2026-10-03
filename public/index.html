@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TopUpDaddy | Wallet Top-up</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="/">TopUpDaddy<span class="brand-dot"></span></a><span class="header-label">Wallet top-up</span></header>
+  <main>
+    <section class="intro"><span class="eyebrow">PAYMENT</span><h1>Wallet top-up</h1><p id="intro">Loading your payment...</p></section>
+    <div id="error" role="alert" hidden></div>
+    <div id="payment" class="payment-layout" hidden>
+      <section class="payment-panel">
+        <div class="amount-row"><span>Amount to pay</span><strong id="amount"></strong></div>
+        <div class="qr-area"><img id="qr" alt="UPI payment QR code" width="240" height="240"></div>
+        <div class="payee"><strong id="payee-name"></strong><span id="payee-vpa"></span></div>
+        <a id="pay-link" class="primary" href="#">Pay with UPI</a>
+        <p class="expiry">Expires <time id="expiry"></time></p>
+      </section>
+      <section class="receipt-panel">
+        <span id="status" class="status" role="status">Pending</span>
+        <h2>Payment receipt</h2>
+        <form id="claim-form">
+          <label for="rrn">UPI transaction ID / RRN</label>
+          <input id="rrn" name="rrn" inputmode="numeric" autocomplete="off" pattern="[0-9]{12}" minlength="12" maxlength="12" required>
+          <button type="submit" class="secondary">Submit receipt</button>
+        </form>
+        <p id="receipt-note" aria-live="polite"></p>
+        <dl><dt>Top-up reference</dt><dd id="reference"></dd></dl>
+      </section>
+    </div>
+  </main>
+  <footer>TopUpDaddy<span>UPI payments</span></footer>
+</body>
+</html>
