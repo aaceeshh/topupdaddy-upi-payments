@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TopUpDaddy | Wallet Top-up</title>
-  <link rel="icon" href="/favicon.svg">
+  <link rel="icon" type="image/png" href="/topupdaddy-logo.png">
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header><a class="brand" href="/">TopUpDaddy<span class="brand-dot"></span></a><span class="header-label">Wallet top-up</span></header>
+  <header><a class="brand" href="/"><img src="/topupdaddy-logo.png" alt="" width="40" height="40">TopUpDaddy</a><span class="header-label">Wallet top-up</span></header>
   <main>
     <section class="intro"><span class="eyebrow">PAYMENT</span><h1>Wallet top-up</h1><p id="intro">Loading your payment...</p></section>
     <div id="error" role="alert" hidden></div>
@@ -17,7 +17,7 @@
       <section class="payment-panel">
         <div class="amount-row"><span>Amount to pay</span><strong id="amount"></strong></div>
         <div class="qr-area"><img id="qr" alt="UPI payment QR code" width="240" height="240"></div>
-        <div class="payee"><strong id="payee-name"></strong><span id="payee-vpa"></span></div>
+        <div class="payee"><img class="payee-logo" src="/topupdaddy-logo.png" alt="TopUpDaddy" width="32" height="32"><strong id="payee-name"></strong><span id="payee-vpa"></span></div>
         <a id="pay-link" class="primary" href="#">Pay with UPI</a>
         <p class="expiry">Expires <time id="expiry"></time></p>
       </section>

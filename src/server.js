@@ -11,7 +11,8 @@ import { createClientKeyResolver, createRateLimits } from './rate-limit.js';
 const publicDir = new URL('../public/', import.meta.url);
 const assets = new Map([
   ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']],
-  ['/favicon.svg', ['favicon.svg', 'image/svg+xml']]
+  ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
+  ['/topupdaddy-logo.png', ['topupdaddy-logo.png', 'image/png']]
 ]);
 
 function equalToken(actual, expected) {
