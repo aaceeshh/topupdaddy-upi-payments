@@ -62,7 +62,17 @@ test('checkout renders a real QR and submits a receipt on desktop and mobile', {
       await page.getByRole('button', { name: 'Submit receipt' }).click();
       await page.getByText('Checking receipt', { exact: true }).waitFor();
       assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM ledger').get().n, 0);
+      store.revokeCheckoutToken(topup.id);
+      await page.reload();
+      await page.getByText('This link has expired or is no longer available. Return to your reseller account.', { exact: true }).waitFor();
+      assert.equal(await page.locator('#payment').isVisible(), false);
+      assert.equal(await page.evaluate((id) => sessionStorage.getItem(`checkout:${id}`), topup.id), null);
     }
     await page.close();
   }
+  const expired = store.createTopup('test-reseller', 500000, Date.now() - 31 * 60000);
+  const page = await browser.newPage();
+  await page.goto(`${config.baseUrl}/checkout/${expired.id}#token=${expired.token}`);
+  await page.getByText('This link has expired or is no longer available. Return to your reseller account.', { exact: true }).waitFor();
+  assert.equal(await page.locator('#payment').isVisible(), false);
 });

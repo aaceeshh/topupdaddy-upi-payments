@@ -23,6 +23,13 @@ async function request(path, options = {}) {
     signal: AbortSignal.timeout(10000)
   });
   const data = await response.json();
+  if (data.code === 'CHECKOUT_UNAVAILABLE') {
+    clearInterval(timer);
+    sessionStorage.removeItem(key);
+    $('payment').hidden = true;
+    $('intro').textContent = 'Payment link unavailable';
+    throw new Error('This link has expired or is no longer available. Return to your reseller account.');
+  }
   if (!response.ok) throw new Error(data.error);
   return data;
 }
@@ -35,7 +42,7 @@ async function refresh() {
   $('payee-name').textContent = data.payeeName;
   $('payee-vpa').textContent = data.payeeVpa;
   $('pay-link').href = data.intent;
-  $('expiry').textContent = new Date(data.expiresAt).toLocaleString('en-IN');
+  $('expiry').textContent = new Date(data.tokenExpiresAt).toLocaleString('en-IN');
   $('reference').textContent = data.id;
   $('status').textContent = labels[data.status] || 'Pending';
   $('status').dataset.status = data.status;

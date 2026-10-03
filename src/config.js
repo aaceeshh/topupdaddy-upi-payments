@@ -12,7 +12,13 @@ export function configuration(env = process.env) {
   const merchantId = transactionsUrl ? merchantFromUrl(transactionsUrl) : null;
   const port = Number(env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
+  const checkoutTokenTtlSeconds = Number(env.CHECKOUT_TOKEN_TTL_SECONDS || 1800);
+  if (!Number.isInteger(checkoutTokenTtlSeconds) || checkoutTokenTtlSeconds < 60 || checkoutTokenTtlSeconds > 3600) {
+    throw new Error('CHECKOUT_TOKEN_TTL_SECONDS must be between 60 and 3600');
+  }
   return {
+    checkoutTokenTtlSeconds,
+    trustedProxyCidrs: (env.TRUSTED_PROXY_CIDRS || '').split(',').map((range) => range.trim()).filter(Boolean),
     token: env.ADMIN_API_TOKEN || '', payeeVpa: env.PAYEE_VPA || '', payeeName: env.PAYEE_NAME || 'TopUpDaddy',
     host: env.HOST || '127.0.0.1', port, dbPath: resolve(env.DB_PATH || './data/payments.sqlite'),
     baseUrl: env.PUBLIC_BASE_URL || `http://127.0.0.1:${port}`, transactionsUrl, merchantId,

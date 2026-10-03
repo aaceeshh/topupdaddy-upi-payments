@@ -4,7 +4,7 @@ A separate application built on [bhar4t/upiqr](https://github.com/bhar4t/upiqr),
 
 ## What is implemented
 
-- Backend-created top-ups with exact integer-paise amounts, reseller IDs, 24-hour payment windows, and secret checkout links.
+- Backend-created top-ups with exact integer-paise amounts, reseller IDs, 24-hour payment windows, and expiring, revocable checkout links.
 - QR payment and a `upi://pay` link for installed UPI apps where supported by the phone/browser.
 - Receipt submission using a 12-digit UPI transaction ID/RRN, preserving leading zeroes.
 - Read-only transaction-list polling with a persistent browser session, pagination, strict column/status parsing, and manual-login recovery.
@@ -35,6 +35,8 @@ Copy `.env.example` to `.env` and configure:
 - `PAYEE_NAME`: registered receiving merchant name.
 - `GPAY_TRANSACTIONS_URL`: the exact Transactions URL from your existing dashboard.
 - `PUBLIC_BASE_URL`: public checkout origin. Use HTTPS in deployment.
+- `CHECKOUT_TOKEN_TTL_SECONDS`: checkout access lifetime, default 1800 seconds; allowed range 60-3600.
+- `TRUSTED_PROXY_CIDRS`: comma-separated explicit proxy IPs/CIDRs; empty by default. See the proxy deployment instructions below.
 
 Generate an API secret with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
 
@@ -78,7 +80,17 @@ Content-Type: application/json
 {"resellerId":"RSL1028","amount":"5000.00"}
 ```
 
-Returns `id`, `expiresAt`, and `checkoutUrl`. Send that secret link only to the intended reseller. Its fragment token is kept out of HTTP URLs and transferred into session storage. Public checkout reads/claims require `X-Checkout-Token`; knowing a top-up ID alone gives no access. Treat links as private capabilities, not identity proof.
+Returns `id`, `expiresAt` (payment deadline), `tokenExpiresAt` (checkout-access deadline), and `checkoutUrl`. Send that secret link only to the intended reseller. Its fragment token is kept out of HTTP URLs and transferred into session storage. Public checkout reads/claims require `X-Checkout-Token`; knowing a top-up ID alone gives no access. Treat links as private capabilities, not identity proof.
+
+Checkout access expires after 30 minutes by default, independently of the 24-hour payment window. Expired, revoked, unknown, and incorrect tokens all receive the same generic 404 without payment details. Credit automatically revokes the checkout token. The checkout clears its saved token and hides payment details when access is refused; the reseller portal should show final credit status using the authenticated backend endpoint below.
+
+The trusted backend can manage links after authenticating the reseller and checking that the top-up belongs to that reseller:
+
+- `POST /api/admin/topups/:id/checkout-token`: rotate the token and return a new `checkoutUrl` and `tokenExpiresAt`. The previous token immediately stops working. Renewal cannot extend the original payment deadline or reopen a credited/expired top-up.
+- `POST /api/admin/topups/:id/checkout-token/revoke`: immediately revoke access. This is idempotent. An authorized backend can later issue a replacement for a still-open top-up.
+- `GET /api/admin/topups/:id`: read amount, reseller ID, verification status, and credit time for the reseller portal, including after checkout access expires. Token hashes and secrets are not returned.
+
+Both POST operations require the admin bearer token and `Content-Type: application/json`; no request body is required. The backend must deliver replacement links only to the independently authenticated owner. There is no unauthenticated token-renewal endpoint.
 
 The checkout submits `POST /api/topups/:id/claim` with `{"rrn":"001234567890"}`. The worker independently reads Google Pay. `GET /api/topups/:id` returns the verification state.
 
@@ -105,8 +117,33 @@ Credit requires a healthy worker and a matching receipt seen within the last fiv
 - An expired top-up refuses new claims. An existing claim may be reviewed later if the payment timestamp was within its original window. The timestamp comparison permits one minute before creation because the dashboard has minute precision.
 - A claimed RRN cannot be changed through checkout; corrections require operator review. Masked payer names/handles are not stored or used for automatic identity matching.
 - Keep `.env`, `data/`, and `profiles/` private and backed up securely. Browser profiles contain login credentials. They and all real receipts are excluded from Git. Run the worker on a secured persistent host, not an ephemeral GitHub Actions runner.
-- Bind behind an HTTPS reverse proxy for remote access, use authentication on your main reseller portal, and restrict admin endpoints to your backend/network. The built-in request limit is per socket IP; users behind a proxy share that limit unless you implement trusted proxy handling. Do not trust arbitrary forwarded headers.
+- Bind behind an HTTPS reverse proxy for remote access, use authentication on your main reseller portal, and restrict admin endpoints to your backend/network. Configure proxy trust and application limits as described below.
 - SQLite WAL supports the server and worker on the same machine. Use one database file and local filesystem. For multiple hosts, move the ledger/receipts to a shared transactional database with equivalent unique constraints.
+
+## Rate limits and proxy deployment
+
+Rate limiting uses `rate-limiter-flexible`. Successful authentication selects a separate limiter before serving a protected endpoint, so failed requests cannot consume authenticated budgets. Limits use 60-second windows and return HTTP 429 with `Retry-After` in seconds.
+
+| Requests | Identity | Limit per minute |
+| --- | --- | --- |
+| Unknown API routes or invalid checkout tokens | Resolved client IP | 60 |
+| Failed admin authentication | Resolved client IP | 30 |
+| Authenticated checkout reads | Top-up ID | 60 |
+| Authenticated checkout writes | Top-up ID | 5 |
+| Authenticated admin reads | Backend credential | 120 |
+| Authenticated admin writes | Backend credential | 30 |
+
+Read/write and anonymous/admin budgets are independent. Rotating a token does not reset the top-up's budget. Unauthenticated floods still require connection/request limits at the reverse proxy or WAF; application authentication is intentionally checked before selecting the protected principal's budget.
+
+Forwarded headers are ignored unless the socket peer is explicitly trusted. Set `TRUSTED_PROXY_CIDRS` only to the actual proxy addresses, for example `127.0.0.1/32,::1/128` for a same-host proxy. Wildcard trust, hop counts, and all-address `/0` ranges are rejected. `proxy-addr` walks `X-Forwarded-For` from the nearest hop toward the client and stops at the first untrusted address. IPv4-mapped addresses are normalized, and IPv6 anonymous limits use /64 subnets to prevent bypass by rotating addresses within a subnet.
+
+The public edge must overwrite untrusted forwarded headers with the actual client IP. For a single Nginx edge proxy, use `proxy_set_header X-Forwarded-For $remote_addr;` and restrict direct access to the Node port. In multi-proxy deployments, validate the full chain and configure only the known proxy networks; never trust headers simply because they are present. See [Express proxy guidance](https://expressjs.com/en/guide/behind-proxies/).
+
+These in-memory limits target the documented single Node server deployment. They reset on restart and are not shared between replicas. Before adding multiple server processes/hosts, use a shared limiter store such as Redis and enforce corresponding limits at the edge. The SQLite worker does not run another HTTP listener.
+
+## Updating an existing database
+
+Back up the SQLite database and stop the old server/worker before upgrading and restarting both. Startup automatically adds token-expiry/revocation columns under a database transaction. Existing links are capped at their creation time plus the configured access lifetime; old links therefore expire immediately instead of being renewed by deployment. Already credited links are revoked. Payment records, receipt claims, and ledger entries are preserved. Issue replacement links through the authenticated backend for eligible pending top-ups. Use the same environment configuration for the server and worker.
 
 ## Verification
 

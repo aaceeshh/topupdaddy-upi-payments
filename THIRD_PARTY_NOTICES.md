@@ -25,3 +25,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 Playwright is used for browser automation and is licensed under Apache-2.0. Dependency notices remain distributed with the installed packages.
+
+Rate limiting uses `rate-limiter-flexible` (ISC). Trusted proxy resolution uses `proxy-addr` (MIT), and IP normalization uses `ipaddr.js` (MIT). Their notices remain distributed with the installed packages.

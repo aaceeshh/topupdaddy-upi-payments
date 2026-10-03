@@ -12,7 +12,7 @@ if (!Number.isInteger(config.pollSeconds) || config.pollSeconds < 30 || config.p
 if (!Number.isInteger(config.maxPages) || config.maxPages < 1 || config.maxPages > 550) throw new Error('Invalid GPAY_MAX_PAGES');
 const login = process.argv.includes('--login');
 const once = process.argv.includes('--once');
-const store = new Store(config.dbPath);
+const store = new Store(config.dbPath, { checkoutTokenTtlSeconds: config.checkoutTokenTtlSeconds });
 let context;
 const abort = new AbortController();
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => abort.abort());
