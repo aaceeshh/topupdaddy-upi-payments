@@ -66,8 +66,13 @@ export async function scanDashboard(page, config) {
       await page.waitForFunction((ids) => {
         const table = document.querySelector('table,[role="table"]');
         if (!table) return false;
-        const text = table.innerText;
-        return ids.every((id) => !text.includes(id));
+        const rows = Array.from(table.querySelectorAll('tr,[role="row"]'));
+        const cells = (row) => Array.from(row.querySelectorAll('td,th,[role="cell"],[role="columnheader"]'));
+        if (!rows.length) return false;
+        const index = cells(rows[0]).findIndex((cell) => cell.innerText.trim() === 'UPI transaction ID');
+        if (index < 0) return false;
+        const currentIds = rows.slice(1).map((row) => cells(row)[index]?.innerText.trim());
+        return currentIds.length > 0 && currentIds.join(',') !== ids.join(',');
       }, current.map((receipt) => receipt.rrn), { timeout: 15000 });
     }
   }
